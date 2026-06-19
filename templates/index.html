@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LAN Scanner</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='index.css') }}"
+    />
+  </head>
+
+  <body>
+    <main class="page">
+      <section class="hero card">
+        <div>
+          <p class="eyebrow">LAN Scanner</p>
+          <h1>Detected Devices</h1>
+          <p class="lead">
+            Scan your local network and quickly review the detected hosts.
+          </p>
+        </div>
+
+        <div class="actions">
+          <button id="scan-button" class="primary" onclick="scanNetwork()">
+            Scan Network
+          </button>
+          <button id="refresh-button" class="secondary" onclick="loadData()">
+            Refresh
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="status-row">
+          <span class="status-dot"></span>
+          <p id="status">Ready for a new scan.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table id="device-table">
+            <thead>
+              <tr>
+                <th>IP</th>
+                <th>MAC</th>
+                <th>Vendor</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <tr class="empty-row">
+                <td colspan="3">No devices detected.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const status = document.getElementById("status");
+      const scanButton = document.getElementById("scan-button");
+      const refreshButton = document.getElementById("refresh-button");
+      const tableBody = document.getElementById("table-body");
+
+      function setButtonsDisabled(disabled) {
+        scanButton.disabled = disabled;
+        refreshButton.disabled = disabled;
+      }
+
+      async function scanNetwork() {
+        status.innerText = "Scanning in progress...";
+        setButtonsDisabled(true);
+
+        try {
+          const response = await fetch("/api/scan", {
+            method: "POST",
+          });
+
+          if (!response.ok) {
+            throw new Error("Scan failed");
+          }
+
+          await response.json();
+          status.innerText = "Scan completed.";
+          await loadData();
+        } catch (error) {
+          status.innerText = "An error occurred during the scan.";
+        } finally {
+          setButtonsDisabled(false);
+        }
+      }
+
+      async function loadData() {
+        try {
+          const response = await fetch("/api/devices");
+          const data = await response.json();
+
+          if (data.length === 0) {
+            tableBody.innerHTML = `
+              <tr class="empty-row">
+                <td colspan="3">No devices detected.</td>
+              </tr>
+            `;
+            return;
+          }
+
+          tableBody.innerHTML = data
+            .map(
+              (device) => `
+                <tr>
+                  <td>${device[0]}</td>
+                  <td>${device[1] || "-"}</td>
+                  <td>${device[2] || "-"}</td>
+                </tr>
+              `,
+            )
+            .join("");
+        } catch (error) {
+          status.innerText = "Unable to load devices.";
+        }
+      }
+
+      loadData();
+    </script>
+  </body>
+</html>
